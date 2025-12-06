@@ -39,13 +39,85 @@ return {
     },
 
     -- INDENTATION & AUTOPAIRS
-    { "lukas-reineke/indent-blankline.nvim", main = "ibl", opts = {} },
-    { 'windwp/nvim-autopairs', event = "InsertEnter", config = true },
+    {
+        "lukas-reineke/indent-blankline.nvim",
+        main = "ibl",
+        opts = {}
+    },
+    {
+        'windwp/nvim-autopairs',
+        event = "InsertEnter",
+        config = true
+    },
+
+    -- LATEX (VimTeX)
+    {
+        "lervag/vimtex",
+        lazy = false, 
+        init = function()
+            -- Usa Zathura come visualizzatore 
+            vim.g.vimtex_view_method = "zathura"
+            -- Compilazione continua con latexmk
+            vim.g.vimtex_compiler_method = "latexmk"
+        end,
+    },
+
+    -- CODE FOLDING
+    {
+        "kevinhwang91/nvim-ufo",
+        dependencies = { "kevinhwang91/promise-async" },
+        event = "BufRead",
+
+        init = function()
+            vim.o.foldcolumn = "0"
+            vim.o.foldlevel = 99
+            vim.o.foldlevelstart = 99
+            vim.o.foldenable = true
+            vim.o.fillchars = [[eob: ,fold: ,foldopen:,foldsep: ,foldclose:]]
+        end,
+
+        opts = {
+            provider_selector = function(bufnr, filetype, buftype)
+                return { "treesitter", "indent" }
+            end,
+
+            fold_virt_text_handler = function(virtText, lnum, endLnum, width, truncate)
+                local newVirtText = {}
+                local suffix = (' 󰁂 %d '):format(endLnum - lnum)
+                local sufWidth = vim.fn.strdisplaywidth(suffix)
+                local targetWidth = width - sufWidth
+                local curWidth = 0
+                for _, chunk in ipairs(virtText) do
+                    local chunkText = chunk[1]
+                    local chunkWidth = vim.fn.strdisplaywidth(chunkText)
+                    if targetWidth > curWidth + chunkWidth then
+                        table.insert(newVirtText, chunk)
+                    else
+                        chunkText = truncate(chunkText, targetWidth - curWidth)
+                        local hlGroup = chunk[2]
+                        table.insert(newVirtText, {chunkText, hlGroup})
+                        chunkWidth = vim.fn.strdisplaywidth(chunkText)
+                        if curWidth + chunkWidth < targetWidth then
+                            suffix = suffix .. (' '):rep(targetWidth - curWidth - chunkWidth)
+                        end
+                        break
+                    end
+                    curWidth = curWidth + chunkWidth
+                end
+
+                table.insert(newVirtText, {suffix, 'MoreMsg'})
+                return newVirtText
+            end
+        },
+    },
 
     -- === LSP SECTION ===
 
     -- MASON BASE
-    { "williamboman/mason.nvim", config = true },
+    {
+        "williamboman/mason.nvim",
+        config = true
+    },
 
     -- MASON-LSPCONFIG & LSPCONFIG
     {
@@ -99,12 +171,14 @@ return {
                     "yamlls",
                     "cssls",
                     "pyright",
-                    "vue-language-server", -- Mason Package Name (su disco)
-                    "ts_ls"                -- Mason/Lspconfig Name
+                    "vue-language-server", 
+                    "ts_ls",
+                    "dockerls",
+                    "texlab",
                 },
                 automatic_installation = false,
-                automatic_enable = { 
-                    exclude = { "vue_ls", "ts_ls", "yamlls", "cssls", "pyright" } 
+                automatic_enable = {
+                    exclude = { "vue_ls", "ts_ls", "yamlls", "cssls", "pyright" }
                 },
             })
 
@@ -116,8 +190,8 @@ return {
 
             setup_server("vue_ls", {
                 init_options = {
-                    vue = { 
-                        hybridMode = true 
+                    vue = {
+                        hybridMode = true
                     },
                 },
             })
@@ -151,9 +225,8 @@ return {
 
             setup_server("ts_ls", {
                 init_options = {
-                    plugins = plugins,  -- Mantieni il plugin Vue
+                    plugins = plugins,
                     preferences = {
-                        -- Disabilita gli inlay hints per JavaScript
                         includeInlayParameterNameHints = 'none',
                         includeInlayParameterNameHintsWhenArgumentMatchesName = false,
                         includeInlayFunctionParameterTypeHints = false,
@@ -174,9 +247,23 @@ return {
                     end
                 end,
             })
+
+            setup_server("texlab", {
+                settings = {
+                    texlab = {
+                        build = {
+                            onSave = true, -- Compila automaticamente quando salvi
+                            forwardSearchAfter = true, -- Porta il PDF alla riga corrente dopo il build
+                        },
+                        chktex = {
+                            onOpenAndSave = true, -- Controllo errori grammaticali/stile (se hai chktex installato)
+                        },
+                    }
+                }
+            })
         end,
     },
-            
+
     -- NVIM-CMP
     {
         "hrsh7th/nvim-cmp",
@@ -211,7 +298,7 @@ return {
         "nvim-treesitter/nvim-treesitter",
         build = ":TSUpdate",
         opts = {
-            ensure_installed = { "vue", "javascript", "typescript", "go", "python", "css", "html", "yaml", "lua", "vim" },
+            ensure_installed = { "vue", "javascript", "typescript", "go", "python", "css", "html", "yaml", "lua", "vim", "latex" },
             sync_install = false,
             auto_install = true,
             highlight = { enable = true, disable = { "tsx" } },
