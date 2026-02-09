@@ -53,7 +53,7 @@ return {
     -- LATEX (VimTeX)
     {
         "lervag/vimtex",
-        lazy = false, 
+        lazy = false,
         init = function()
             -- Usa Zathura come visualizzatore 
             vim.g.vimtex_view_method = "zathura"
@@ -111,6 +111,58 @@ return {
         },
     },
 
+    -- PLUGIN QUARTO & DATA SCIENCE  
+    {
+        "quarto-dev/quarto-nvim",
+        dependencies = {
+            "jmbuhr/otter.nvim",              -- LSP injection (Python dentro Markdown)
+            "nvim-treesitter/nvim-treesitter",
+        },
+        ft = { "quarto", "markdown" },        -- Carica solo per questi file
+        config = function()
+            local quarto = require("quarto")
+            quarto.setup({
+                lspFeatures = {
+                    enabled = true,
+                    chunks = "all", -- Attiva l'intelligenza su tutti i blocchi di codice
+                    languages = { "python", "bash", "lua" },
+                    diagnostics = { enabled = true, triggers = { "BufWritePost" } },
+                    completion = { enabled = true },
+                },
+                keymap = {
+                    hover = "K",
+                    definition = "gd",
+                },
+            })
+
+            -- Keymap: <leader>qp apre l'anteprima PDF laterale
+            vim.keymap.set("n", "<leader>qp", quarto.quartoPreview, { desc = "Anteprima Quarto (PDF)", silent = true })
+        end,
+    },
+
+    -- RENDERING VISIVO (Formule e Tabelle nel buffer) 
+    {
+        'MeanderingProgrammer/render-markdown.nvim',
+        dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' },
+        ft = { "markdown", "quarto" },
+        opts = {
+            -- Disabilita il rendering sui file normali, abilita solo su md/quarto
+            file_types = { "markdown", "quarto" },
+            code = {
+                sign = false,
+                width = 'block',
+                right_pad = 1,
+            },
+            heading = {
+                sign = false,
+                icons = { '󰲡 ', '󰲣 ', '󰲥 ', '󰲧 ', '󰲩 ', '󰲫 ' },
+            },
+            -- Renderizza le formule LaTeX ($...$) direttamente mentre scrivi!
+            latex = { enabled = true }, 
+        },
+    },
+
+
     -- === LSP SECTION ===
 
     -- MASON BASE
@@ -142,7 +194,7 @@ return {
                 nmap('<leader>e', vim.diagnostic.open_float, 'Mostra diagnostica di linea')
 
                 if client.server_capabilities.inlayHintProvider then
-                    vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+                    vim.lsp.inlay_hint.enable(false, { bufnr = bufnr })
                 end
             end
 
@@ -170,15 +222,18 @@ return {
                 ensure_installed = {
                     "yamlls",
                     "cssls",
-                    "pyright",
+                    "ty",
                     "vue-language-server", 
                     "ts_ls",
                     "dockerls",
                     "texlab",
+                    "clangd",
+                    "marksman",
+                    "pyright",
                 },
                 automatic_installation = false,
                 automatic_enable = {
-                    exclude = { "vue_ls", "ts_ls", "yamlls", "cssls", "pyright" }
+                    exclude = { "vue_ls", "ts_ls", "yamlls", "cssls", "ty" }
                 },
             })
 
@@ -186,6 +241,8 @@ return {
 
             setup_server("yamlls", {})
             setup_server("cssls", {})
+            setup_server("ty", {})
+            setup_server("marksman", {})
             setup_server("pyright", {})
 
             setup_server("vue_ls", {
@@ -261,9 +318,27 @@ return {
                     }
                 }
             })
+
+            setup_server("clangd", {
+                cmd = {
+                    "clangd",
+                    "--background-index",
+                    "--clang-tidy",
+                    "--header-insertion=iwyu",
+                    "--completion-style=detailed",
+                    "--function-arg-placeholders",
+                    "--fallback-style=llvm",
+                },
+                init_options = {
+                    usePlaceholders = true,
+                    completeUnimported = true,
+                    clangdFileStatus = true,
+                },
+            })
         end,
     },
 
+    -- vedi blink
     -- NVIM-CMP
     {
         "hrsh7th/nvim-cmp",
