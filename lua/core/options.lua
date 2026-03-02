@@ -23,6 +23,7 @@ opt.cmdheight = 1                   -- Altezza linea di comando
 opt.showmatch = true                -- Evidenzia parentesi corrispondenti
 opt.splitright = true               -- Split verticali a destra
 opt.splitbelow = true               -- Split orizzontali in basso
+opt.conceallevel = 2                -- LaTeX e Markdown
 
 -- Formatting
 opt.tabstop = 4                     -- Spazi per un TAB

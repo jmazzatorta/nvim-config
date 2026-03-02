@@ -1,6 +1,6 @@
 return {
 
-    -- THEME (Catppuccin)
+    -- === THEME ===
     {
         "catppuccin/nvim",
         name = "catppuccin",
@@ -15,18 +15,18 @@ return {
         end,
     },
 
-    -- STATUS BAR (Lualine)
+    -- === STATUS BAR ===
     {
         "nvim-lualine/lualine.nvim",
         dependencies = { "nvim-tree/nvim-web-devicons" },
         opts = { options = { theme = "catppuccin" } },
     },
 
-    -- FILE EXPLORER (Nvim-Tree)
+    -- === FILE EXPLORER ===
     {
         "nvim-tree/nvim-tree.lua",
         dependencies = { "nvim-tree/nvim-web-devicons" },
-        keys = { { "<leader>n", ":NvimTreeToggle<CR>", silent = true, desc = "Toggle NvimTree" } },
+        keys = { { "<leader>n", ":NvimTreeToggle<CR>", silent = true, desc = "File tree" } },
         opts = {
             renderer = {
                 icons = {
@@ -38,7 +38,7 @@ return {
         },
     },
 
-    -- INDENTATION & AUTOPAIRS
+    -- === INDENTATION & AUTOPAIRS ===
     {
         "lukas-reineke/indent-blankline.nvim",
         main = "ibl",
@@ -50,104 +50,131 @@ return {
         config = true
     },
 
-    -- LATEX (VimTeX)
-    {
-        "lervag/vimtex",
-        lazy = false,
-        init = function()
-            -- Usa Zathura come visualizzatore 
-            vim.g.vimtex_view_method = "zathura"
-            -- Compilazione continua con latexmk
-            vim.g.vimtex_compiler_method = "latexmk"
-        end,
-    },
-
-    -- CODE FOLDING
+    -- === CODE FOLDING ===
     {
         "kevinhwang91/nvim-ufo",
         dependencies = { "kevinhwang91/promise-async" },
         event = "BufRead",
-
         init = function()
             vim.o.foldcolumn = "0"
             vim.o.foldlevel = 99
             vim.o.foldlevelstart = 99
             vim.o.foldenable = true
-            vim.o.fillchars = [[eob: ,fold: ,foldopen:,foldsep: ,foldclose:]]
+            vim.o.fillchars = "eob: ,fold: ,foldopen:▾,foldsep:│,foldclose:▸"
         end,
-
         opts = {
             provider_selector = function(bufnr, filetype, buftype)
                 return { "treesitter", "indent" }
             end,
-
-            fold_virt_text_handler = function(virtText, lnum, endLnum, width, truncate)
-                local newVirtText = {}
-                local suffix = (' 󰁂 %d '):format(endLnum - lnum)
-                local sufWidth = vim.fn.strdisplaywidth(suffix)
-                local targetWidth = width - sufWidth
-                local curWidth = 0
-                for _, chunk in ipairs(virtText) do
-                    local chunkText = chunk[1]
-                    local chunkWidth = vim.fn.strdisplaywidth(chunkText)
-                    if targetWidth > curWidth + chunkWidth then
-                        table.insert(newVirtText, chunk)
-                    else
-                        chunkText = truncate(chunkText, targetWidth - curWidth)
-                        local hlGroup = chunk[2]
-                        table.insert(newVirtText, {chunkText, hlGroup})
-                        chunkWidth = vim.fn.strdisplaywidth(chunkText)
-                        if curWidth + chunkWidth < targetWidth then
-                            suffix = suffix .. (' '):rep(targetWidth - curWidth - chunkWidth)
-                        end
-                        break
-                    end
-                    curWidth = curWidth + chunkWidth
-                end
-
-                table.insert(newVirtText, {suffix, 'MoreMsg'})
-                return newVirtText
-            end
         },
     },
 
-    -- PLUGIN QUARTO & DATA SCIENCE  
+    -- === WHICH-KEY ===
     {
-        "quarto-dev/quarto-nvim",
-        dependencies = {
-            "jmbuhr/otter.nvim",              -- LSP injection (Python dentro Markdown)
-            "nvim-treesitter/nvim-treesitter",
+        "folke/which-key.nvim",
+        event = "VeryLazy",
+        opts = {
+            icons = { group = "󰉋 " },
         },
-        ft = { "quarto", "markdown" },        -- Carica solo per questi file
-        config = function()
-            local quarto = require("quarto")
-            quarto.setup({
-                lspFeatures = {
-                    enabled = true,
-                    chunks = "all", -- Attiva l'intelligenza su tutti i blocchi di codice
-                    languages = { "python", "bash", "lua" },
-                    diagnostics = { enabled = true, triggers = { "BufWritePost" } },
-                    completion = { enabled = true },
-                },
-                keymap = {
-                    hover = "K",
-                    definition = "gd",
-                },
-            })
+        config = function(_, opts)
+            local wk = require("which-key")
+            wk.setup(opts)
 
-            -- Keymap: <leader>qp apre l'anteprima PDF laterale
-            vim.keymap.set("n", "<leader>qp", quarto.quartoPreview, { desc = "Anteprima Quarto (PDF)", silent = true })
+            wk.add({
+                { "<leader>f", group = "Find" },
+
+                { "<leader>l",  group = "LSP" },
+                { "<leader>ld", desc = "Definition" },
+                { "<leader>lk", desc = "Hover docs" },
+                { "<leader>li", desc = "Implementation" },
+                { "<leader>lr", desc = "References" },
+                { "<leader>la", desc = "Code action" },
+                { "<leader>le", desc = "Line diagnostic" },
+                { "<leader>lc", desc = "Run CodeLens" },
+                { "<leader>lt", desc = "Toggle CodeLens" },
+
+                { "<leader>t",  group = "LaTeX" },
+                { "<leader>tc", desc = "Compile" },
+                { "<leader>tv", desc = "View PDF" },
+                { "<leader>ts", desc = "Stop compiler" },
+                { "<leader>te", desc = "Errors" },
+                { "<leader>tt", desc = "Table of contents" },
+                { "<leader>tk", desc = "Clean aux" },
+            })
         end,
     },
 
-    -- RENDERING VISIVO (Formule e Tabelle nel buffer) 
+    -- === TELESCOPE ===
+    {
+        "nvim-telescope/telescope.nvim",
+        branch = "0.1.x",
+        dependencies = {
+            "nvim-lua/plenary.nvim",
+            "nvim-tree/nvim-web-devicons",
+        },
+        keys = {
+            { "<leader>ff", function() require("telescope.builtin").find_files() end,           desc = "Files" },
+            { "<leader>fg", function() require("telescope.builtin").live_grep() end,            desc = "Grep" },
+            { "<leader>fb", function() require("telescope.builtin").buffers() end,              desc = "Buffers" },
+            { "<leader>fh", function() require("telescope.builtin").help_tags() end,            desc = "Help" },
+            { "<leader>fs", function() require("telescope.builtin").lsp_document_symbols() end, desc = "Symbols" },
+            { "<leader>fd", function() require("telescope.builtin").diagnostics() end,          desc = "Diagnostics" },
+            { "<leader>fr", function() require("telescope.builtin").oldfiles() end,             desc = "Recent" },
+        },
+        opts = {
+            defaults = {
+                prompt_prefix = "   ",
+                selection_caret = "  ",
+                sorting_strategy = "ascending",
+                layout_config = {
+                    horizontal = { prompt_position = "top" },
+                },
+            },
+        },
+    },
+
+    -- === LATEX (vimtex + zathura) ===
+    {
+        "lervag/vimtex",
+        init = function()
+            vim.g.vimtex_view_method = "zathura"
+            vim.g.vimtex_compiler_method = "latexmk"
+            vim.g.vimtex_compiler_latexmk = {
+                options = {
+                    "-pdf",
+                    "-interaction=nonstopmode",
+                    "-synctex=1",
+                    "-pvc",
+                },
+            }
+            vim.g.vimtex_quickfix_mode = 0
+        end,
+        ft = { "tex" },
+        config = function()
+            vim.api.nvim_create_autocmd("FileType", {
+                pattern = "tex",
+                callback = function(args)
+                    local map = function(keys, cmd, desc)
+                        vim.keymap.set('n', keys, cmd, { buffer = args.buf, silent = true, desc = 'TeX: ' .. desc })
+                    end
+                    map('<leader>tc', '<cmd>VimtexCompile<CR>',       'Compile (continuous)')
+                    map('<leader>tv', '<cmd>VimtexView<CR>',          'View PDF')
+                    map('<leader>ts', '<cmd>VimtexStop<CR>',          'Stop compiler')
+                    map('<leader>te', '<cmd>VimtexErrors<CR>',        'Errors')
+                    map('<leader>tt', '<cmd>VimtexTocToggle<CR>',     'Table of contents')
+                    map('<leader>tk', '<cmd>VimtexClean<CR>',         'Clean aux files')
+                end,
+            })
+        end,
+    },
+
+    -- === MARKDOWN RENDERING (minimal, text only) ===
     {
         'MeanderingProgrammer/render-markdown.nvim',
         dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' },
-        ft = { "markdown", "quarto" },
+        ft = { "markdown" },
         opts = {
-            -- Disabilita il rendering sui file normali, abilita solo su md/quarto
-            file_types = { "markdown", "quarto" },
+            file_types = { "markdown" },
             code = {
                 sign = false,
                 width = 'block',
@@ -157,48 +184,82 @@ return {
                 sign = false,
                 icons = { '󰲡 ', '󰲣 ', '󰲥 ', '󰲧 ', '󰲩 ', '󰲫 ' },
             },
-            -- Renderizza le formule LaTeX ($...$) direttamente mentre scrivi!
-            latex = { enabled = true }, 
         },
     },
 
+    -- === LSP ===
 
-    -- === LSP SECTION ===
+    { "williamboman/mason.nvim", config = true },
 
-    -- MASON BASE
-    {
-        "williamboman/mason.nvim",
-        config = true
-    },
-
-    -- MASON-LSPCONFIG & LSPCONFIG
     {
         "williamboman/mason-lspconfig.nvim",
-        dependencies = { "neovim/nvim-lspconfig" },
+        dependencies = {
+            "neovim/nvim-lspconfig",
+            "hrsh7th/cmp-nvim-lsp",
+        },
         config = function()
-            -- Carichiamo lspconfig
             require("lspconfig")
             local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
-            -- Funzione on_attach condivisa
+            vim.o.updatetime = 300
+
+            local codelens_enabled = false
+
+            local function codelens_refresh(bufnr)
+                if codelens_enabled then
+                    vim.lsp.codelens.refresh({ bufnr = bufnr })
+                end
+            end
+
+            local function codelens_clear(bufnr)
+                vim.lsp.codelens.clear(nil, bufnr)
+            end
+
             local on_attach = function(client, bufnr)
-                local nmap = function(keys, func, desc)
+                local map = function(keys, func, desc)
                     vim.keymap.set('n', keys, func, { buffer = bufnr, noremap = true, silent = true, desc = 'LSP: ' .. desc })
                 end
-                nmap('gd', vim.lsp.buf.definition, '[G]o to [D]efinizione')
-                nmap('K', vim.lsp.buf.hover, 'Documentazione Hover')
-                nmap('gi', vim.lsp.buf.implementation, '[G]o to [I]mplementazione')
-                nmap('<leader>rn', vim.lsp.buf.rename, '[R]i[n]omina')
-                nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
-                nmap('gr', vim.lsp.buf.references, '[G]o to [R]eferenze')
-                nmap('<leader>e', vim.diagnostic.open_float, 'Mostra diagnostica di linea')
+
+                -- Quick aliases
+                map('gd', vim.lsp.buf.definition, 'Definition')
+                map('K', vim.lsp.buf.hover, 'Hover')
+                map('gi', vim.lsp.buf.implementation, 'Implementation')
+                map('gr', vim.lsp.buf.references, 'References')
+
+                -- <leader>l group
+                map('<leader>ld', vim.lsp.buf.definition, 'Definition')
+                map('<leader>lk', vim.lsp.buf.hover, 'Hover docs')
+                map('<leader>li', vim.lsp.buf.implementation, 'Implementation')
+                map('<leader>lr', vim.lsp.buf.references, 'References')
+                map('<leader>la', vim.lsp.buf.code_action, 'Code action')
+                map('<leader>le', vim.diagnostic.open_float, 'Line diagnostic')
+                map('<leader>lc', vim.lsp.codelens.run, 'Run CodeLens')
+
+                map('<leader>lt', function()
+                    codelens_enabled = not codelens_enabled
+                    if codelens_enabled then
+                        codelens_refresh(bufnr)
+                        vim.notify("CodeLens ON", vim.log.levels.INFO)
+                    else
+                        codelens_clear(bufnr)
+                        vim.notify("CodeLens OFF", vim.log.levels.INFO)
+                    end
+                end, 'Toggle CodeLens')
+
+                if client.server_capabilities.codeLensProvider then
+                    vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold", "InsertLeave" }, {
+                        buffer = bufnr,
+                        callback = function()
+                            codelens_refresh(bufnr)
+                        end,
+                    })
+                end
 
                 if client.server_capabilities.inlayHintProvider then
                     vim.lsp.inlay_hint.enable(false, { bufnr = bufnr })
                 end
             end
 
-            -- === HELPER SETUP NVIM 0.11 ===
             local function setup_server(server_name, config)
                 config = vim.tbl_deep_extend("force", {
                     on_attach = on_attach,
@@ -217,43 +278,27 @@ return {
                 end
             end
 
-            -- Setup di Mason-LSPConfig
             require('mason-lspconfig').setup({
                 ensure_installed = {
-                    "yamlls",
-                    "cssls",
-                    "ty",
-                    "vue-language-server", 
-                    "ts_ls",
-                    "dockerls",
-                    "texlab",
-                    "clangd",
-                    "marksman",
-                    "pyright",
+                    "yamlls", "cssls", "dockerls", "clangd",
+                    "pyright", "bashls",
+                    "hls", "lua_ls", "texlab",
                 },
                 automatic_installation = false,
-                automatic_enable = {
-                    exclude = { "vue_ls", "ts_ls", "yamlls", "cssls", "ty" }
+                handlers = {
+                    function(server_name)
+                        setup_server(server_name, {})
+                    end,
                 },
             })
 
-            -- === SETUP SERVER ===
-
-            setup_server("yamlls", {})
-            setup_server("cssls", {})
-            setup_server("ty", {})
-            setup_server("marksman", {})
-            setup_server("pyright", {})
-
+            -- Custom server configs
             setup_server("vue_ls", {
                 init_options = {
-                    vue = {
-                        hybridMode = true
-                    },
+                    vue = { hybridMode = true },
                 },
             })
 
-            -- Configurazione TYPESCRIPT (ts_ls)
             local mason_packages = vim.fn.stdpath("data") .. "/mason/packages"
             local volar_path = mason_packages .. "/vue-language-server"
             local vue_plugin_path = nil
@@ -295,9 +340,7 @@ return {
                 },
                 filetypes = { "typescript", "javascript", "javascriptreact", "typescriptreact", "vue" },
                 on_attach = function(client, bufnr)
-                    on_attach(client, bufnr)  -- Chiama il tuo on_attach base
-
-                    -- Disabilita inlay hints per file JavaScript e Vue con JS
+                    on_attach(client, bufnr)
                     local filetype = vim.bo[bufnr].filetype
                     if filetype == "javascript" or filetype == "vue" then
                         vim.lsp.inlay_hint.enable(false, { bufnr = bufnr })
@@ -305,52 +348,85 @@ return {
                 end,
             })
 
-            setup_server("texlab", {
+            setup_server("clangd", {
+                cmd = { "clangd", "--background-index", "--clang-tidy", "--header-insertion=iwyu",
+                    "--completion-style=detailed", "--function-arg-placeholders", "--fallback-style=llvm" },
+                init_options = { usePlaceholders = true, completeUnimported = true, clangdFileStatus = true },
+            })
+
+            setup_server("hls", {
+                filetypes = { 'haskell', 'lhaskell', 'cabal' },
                 settings = {
-                    texlab = {
-                        build = {
-                            onSave = true, -- Compila automaticamente quando salvi
-                            forwardSearchAfter = true, -- Porta il PDF alla riga corrente dopo il build
-                        },
-                        chktex = {
-                            onOpenAndSave = true, -- Controllo errori grammaticali/stile (se hai chktex installato)
-                        },
+                    haskell = {
+                        plugin = {
+                            eval = { globalOn = true },
+                        }
                     }
                 }
             })
 
-            setup_server("clangd", {
-                cmd = {
-                    "clangd",
-                    "--background-index",
-                    "--clang-tidy",
-                    "--header-insertion=iwyu",
-                    "--completion-style=detailed",
-                    "--function-arg-placeholders",
-                    "--fallback-style=llvm",
+            setup_server("lua_ls", {
+                settings = {
+                    Lua = {
+                        runtime = { version = "LuaJIT" },
+                        workspace = {
+                            checkThirdParty = false,
+                            library = { vim.env.VIMRUNTIME },
+                        },
+                        diagnostics = {
+                            globals = { "vim" },
+                        },
+                    },
                 },
-                init_options = {
-                    usePlaceholders = true,
-                    completeUnimported = true,
-                    clangdFileStatus = true,
+            })
+
+            -- texlab: LSP only (completion, diagnostics, symbols)
+            -- build handled by vimtex, not texlab
+            setup_server("texlab", {
+                settings = {
+                    texlab = {
+                        build = { onSave = false },
+                        forwardSearch = {
+                            executable = "zathura",
+                            args = { "--synctex-forward", "%l:1:%f", "%p" },
+                        },
+                    },
                 },
             })
         end,
     },
 
-    -- vedi blink
-    -- NVIM-CMP
+    -- === COMPLETION ===
     {
         "hrsh7th/nvim-cmp",
-        dependencies = { "hrsh7th/cmp-nvim-lsp", "hrsh7th/cmp-buffer", "hrsh7th/cmp-path", "L3MON4D3/LuaSnip", "saadparwaiz1/cmp_luasnip", "onsails/lspkind.nvim" },
+        dependencies = { "hrsh7th/cmp-nvim-lsp", "hrsh7th/cmp-buffer", "hrsh7th/cmp-path", "L3MON4D3/LuaSnip", "saadparwaiz1/cmp_luasnip", "onsails/lspkind.nvim", "hrsh7th/cmp-nvim-lsp-signature-help" },
         config = function()
             local cmp = require('cmp')
             local luasnip = require('luasnip')
             local lspkind = require('lspkind')
+
+            -- Load custom snippets
+            luasnip.add_snippets("tex", require("snippets.tex"))
             cmp.setup({
-                formatting = { format = lspkind.cmp_format({ mode = 'text', maxwidth = 50, ellipsis_char = '...' }) },
+                formatting = {
+                    format = lspkind.cmp_format({
+                        mode = 'symbol_text',
+                        maxwidth = 50,
+                        ellipsis_char = '...',
+                    }),
+                },
+                window = {
+                    completion = cmp.config.window.bordered(),
+                    documentation = cmp.config.window.bordered(),
+                },
                 snippet = { expand = function(args) luasnip.lsp_expand(args.body) end },
-                sources = { { name = 'nvim_lsp' }, { name = 'luasnip' }, { name = 'buffer' }, { name = 'path' } },
+                sources = {
+                    { name = 'nvim_lsp' },
+                    { name = 'nvim_lsp_signature_help' },
+                    { name = 'luasnip' },
+                    { name = 'buffer' },
+                    { name = 'path' }
+                },
                 mapping = cmp.mapping.preset.insert({
                     ['<CR>'] = cmp.mapping.confirm({ select = true }),
                     ['<Tab>'] = cmp.mapping(function(fallback)
@@ -363,20 +439,37 @@ return {
                         elseif luasnip.jumpable(-1) then luasnip.jump(-1)
                         else fallback() end
                     end, { 'i', 's' }),
+                    ['<C-d>'] = cmp.mapping.scroll_docs(4),
+                    ['<C-u>'] = cmp.mapping.scroll_docs(-4),
                 }),
             })
         end,
     },
 
-    -- TREESITTER
+    -- === TREESITTER ===
     {
         "nvim-treesitter/nvim-treesitter",
         build = ":TSUpdate",
+        config = function(_, opts)
+            require("nvim-treesitter.configs").setup(opts)
+            require("nvim-treesitter.install").prefer_git = true
+
+            vim.api.nvim_create_autocmd("FileType", {
+                pattern = { "markdown" },
+                callback = function()
+                    vim.treesitter.start()
+                end,
+            })
+        end,
         opts = {
-            ensure_installed = { "vue", "javascript", "typescript", "go", "python", "css", "html", "yaml", "lua", "vim", "latex" },
+            ensure_installed = {
+                "vue", "javascript", "typescript", "go", "python", "css", "html",
+                "yaml", "lua", "vim", "markdown", "markdown_inline", "latex",
+                "haskell", "bash",
+            },
             sync_install = false,
             auto_install = true,
-            highlight = { enable = true, disable = { "tsx" } },
+            highlight = { enable = true },
             indent = { enable = true },
         },
     },
