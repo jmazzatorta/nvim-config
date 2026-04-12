@@ -28,6 +28,14 @@ return {
         dependencies = { "nvim-tree/nvim-web-devicons" },
         keys = { { "<leader>n", ":NvimTreeToggle<CR>", silent = true, desc = "File tree" } },
         opts = {
+            filesystem_watchers = {
+                enable = true,
+                debounce_delay = 50,
+                ignore_dirs = {},
+            },
+            view = {
+                side = "right"
+            },
             renderer = {
                 icons = {
                     glyphs = {
@@ -81,6 +89,7 @@ return {
             wk.setup(opts)
 
             wk.add({
+                { "<leader>a", group = "AI / Avante" },
                 { "<leader>f", group = "Find" },
 
                 { "<leader>l",  group = "LSP" },
@@ -185,6 +194,53 @@ return {
                 icons = { '󰲡 ', '󰲣 ', '󰲥 ', '󰲧 ', '󰲩 ', '󰲫 ' },
             },
         },
+    },
+
+    -- === D2 ===
+    {
+        "terrastruct/d2-vim",
+        ft = "d2",
+        config = function()
+            vim.api.nvim_create_autocmd("BufWritePost", {
+                pattern = "*.d2",
+                callback = function(opts)
+                    local filepath = opts.match
+                    local pngpath = filepath:gsub("%.d2$", ".png")
+
+                    -- Compila in background in modo asincrono con feedback
+                    vim.fn.jobstart({"d2", "--theme", "200", filepath, pngpath}, {
+                        on_exit = function(_, code)
+                            if code == 0 then
+                                -- Se ha successo, mostra una piccola notifica
+                                vim.notify("Diagramma D2 aggiornato", vim.log.levels.INFO, { title = "D2 Compiler" })
+                            else
+                                -- Se fallisce, ti avvisa dell'errore
+                                vim.notify("Errore di sintassi in D2!", vim.log.levels.ERROR, { title = "D2 Compiler" })
+                            end
+                        end
+                    })
+
+                    -- Controlla se abbiamo già avviato imv per questo specifico buffer
+                    if not vim.b[opts.buf].imv_job_id then
+                        local job_id = vim.fn.jobstart({"imv", pngpath}, {
+                            detach = false
+                        })
+                        vim.b[opts.buf].imv_job_id = job_id
+                    end
+                end,
+            })
+
+            -- 2. Pulizia automatica: chiude imv quando chiudi il buffer
+            vim.api.nvim_create_autocmd("BufDelete", {
+                pattern = "*.d2",
+                callback = function(opts)
+                    local job_id = vim.b[opts.buf].imv_job_id
+                    if job_id then
+                        vim.fn.jobstop(job_id)
+                    end
+                end,
+            })
+        end
     },
 
     -- === LSP ===
@@ -451,11 +507,22 @@ return {
         "nvim-treesitter/nvim-treesitter",
         build = ":TSUpdate",
         config = function(_, opts)
+
+            local parser_config = require("nvim-treesitter.parsers").get_parser_configs()
+            parser_config.d2 = {
+                install_info = {
+                    url = "https://github.com/pleshevskiy/tree-sitter-d2",
+                    files = { "src/parser.c", "src/scanner.cc" },
+                    branch = "main",
+                },
+                filetype = "d2",
+            }
+
             require("nvim-treesitter.configs").setup(opts)
             require("nvim-treesitter.install").prefer_git = true
 
             vim.api.nvim_create_autocmd("FileType", {
-                pattern = { "markdown" },
+                pattern = { "markdown", "d2" },
                 callback = function()
                     vim.treesitter.start()
                 end,
@@ -465,12 +532,86 @@ return {
             ensure_installed = {
                 "vue", "javascript", "typescript", "go", "python", "css", "html",
                 "yaml", "lua", "vim", "markdown", "markdown_inline", "latex",
-                "haskell", "bash",
+                "haskell", "bash", "d2",
             },
             sync_install = false,
             auto_install = true,
             highlight = { enable = true },
             indent = { enable = true },
+        },
+    },
+
+    -- === COPILOT ===
+    {
+        "zbirenbaum/copilot.lua",
+        cmd = "Copilot",
+        event = "InsertEnter",
+        opts = {
+            suggestion = { enabled = false },
+            panel = { enabled = false },
+        },
+    },
+
+    -- === AVANTE AGENT w/ COPILOT ===
+    {
+        "yetone/avante.nvim",
+        lazy = false,
+        version = false,
+        build = "make",
+        opts = {
+            provider = "copilot",
+            providers = {
+                copilot = {
+                    -- model = "gpt-4o-2024-08-06", 
+                    -- model = "claude-3.5-sonnet",
+                    model = "gpt-4o-mini";
+                    temperature = 0,
+                    extra_request_body = {
+                        max_tokens = 4096,
+                    },
+                },
+            },
+            behaviour = {
+                auto_suggestions = false,
+                auto_set_highlight_group = true,
+                auto_set_keymaps = true,
+                auto_apply_diff_after_generation = false,
+            },
+            mappings = {
+                ask = "<leader>aa",
+                edit = "<leader>ae",
+                refresh = "<leader>ar",
+                focus = "<leader>af",
+                toggle = {
+                    default = "<leader>at",
+                    debug = "<leader>ad",
+                    hint = "<leader>ah",
+                    suggestion = "<leader>as",
+                    repomap = "<leader>am",
+                },
+            },
+        },
+        keys = {
+            {
+                "<leader>at",
+                function()
+                    vim.cmd("AvanteToggle")
+                    require("avante.api").refresh()
+                end,
+                desc = "Toggle Avante UI & Popups",
+            },
+        },
+        dependencies = {
+            "nvim-treesitter/nvim-treesitter",
+            "stevearc/dressing.nvim",
+            "nvim-lua/plenary.nvim",
+            "MunifTanjim/nui.nvim",
+            "echasnovski/mini.icons",
+            {
+                "MeanderingProgrammer/render-markdown.nvim",
+                opts = { file_types = { "markdown", "Avante" } },
+                ft = { "markdown", "Avante" },
+            },
         },
     },
 }
